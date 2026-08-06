@@ -543,17 +543,35 @@ func (a *API) breedQuery(c *gin.Context) {
 			males, _ := a.loadPetsBySpeciesGender(s.ID, "公")
 			pets := make([]models.MyPet, 0, len(males))
 			for _, p := range males {
-				if damNatureOK {
-					// 母已是正确性格：只推同性格公，目标产下该性格子代
-					if p.NatureID == natureID {
-						pets = append(pets, p)
-					}
-				} else if _, ok := bestSet[p.NatureID]; ok {
+				// 背包公：性格落在母种最佳 PVP 内即可
+				// 母已最佳时：同性格=强推，其它最佳性格=弱推（前端方案2）；图鉴行筛选仍按下方 atlasOK，不受影响
+				if _, ok := bestSet[p.NatureID]; ok {
 					pets = append(pets, p)
 				}
 			}
-			// 无匹配公时：仅保留母本物种图鉴行，其它空物种不展示
-			if len(pets) == 0 && s.ID != speciesID {
+			// 图鉴行：与背包无关；蛋组已可配时，再看该种是否具备推荐性格条件
+			// - 母已最佳：图鉴种最佳 PVP 含查询性格（可作同性格公来源）
+			// - 母非最佳：图鉴种最佳 PVP 与母种最佳有交集
+			// 背包行仍按上面公宠过滤附带；无公宠但图鉴条件满足时仍保留图鉴行
+			atlasOK := s.ID == speciesID
+			if !atlasOK {
+				if damNatureOK {
+					for _, id := range s.BestPvpNatureIDs {
+						if id == natureID {
+							atlasOK = true
+							break
+						}
+					}
+				} else {
+					for _, id := range s.BestPvpNatureIDs {
+						if _, ok := bestSet[id]; ok {
+							atlasOK = true
+							break
+						}
+					}
+				}
+			}
+			if len(pets) == 0 && !atlasOK {
 				continue
 			}
 			results = append(results, models.BreedQueryResult{Species: s, Pets: pets})

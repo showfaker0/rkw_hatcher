@@ -1373,9 +1373,18 @@ label.pick-item.selected {
 .pet-item {
   margin-bottom: 0;
   display: grid;
-  grid-template-columns: auto auto 16.6em 2.2em 11em 6.5em minmax(0, 1fr) auto;
+  /* id | icon | name | gender | eggs | nature | medals | actions */
+  grid-template-columns:
+    auto
+    auto
+    13em
+    2.2em
+    minmax(7em, 10em)
+    5.5em
+    minmax(6.5em, 1fr)
+    max-content;
   align-items: center;
-  column-gap: 18px;
+  column-gap: 14px;
   row-gap: 10px;
   padding: 12px 18px;
   box-shadow: none;
@@ -1444,12 +1453,75 @@ label.pick-item.selected {
   min-width: 0;
 }
 .pet-medals {
-  margin-left: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  overflow: hidden;
 }
 .pet-item .actions {
-  margin-left: 0;
+  margin-left: 4px;
   justify-self: end;
   align-self: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.pet-item .actions .pet-breed-rec {
+  background: #5a7a96;
+  color: #fffaf8;
+}
+[data-theme='night'] .pet-item .actions .pet-breed-rec {
+  background: #6e8fad;
+  color: #f4f7fb;
+}
+.dialog-card.breed-recommend-dialog {
+  width: min(96vw, 980px);
+  max-height: min(86vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 16px;
+}
+.dialog-card.breed-recommend-dialog .dialog-title {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+.dialog-card.breed-recommend-dialog .error {
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+}
+.dialog-card.breed-recommend-dialog .breed-result-wrap {
+  flex: 1;
+  min-height: 160px;
+  max-height: min(62vh, 640px);
+}
+.dialog-card.breed-recommend-dialog .dialog-actions {
+  flex: 0 0 auto;
+  margin-top: 14px;
+}
+/* 弹窗宽度更窄：单独收紧编号间距，性格标签限制列宽以便换行 */
+.dialog-card.breed-recommend-dialog .breed-result-main {
+  grid-template-columns:
+    3.2em
+    48px
+    minmax(0, 13.5em)
+    1.6em
+    minmax(5.5em, 7em)
+    minmax(9em, 10.5em)
+    minmax(28px, 1fr);
+  column-gap: 8px;
+}
+.dialog-card.breed-recommend-dialog .breed-result-nature {
+  width: 100%;
+}
+.dialog-card.breed-recommend-dialog .breed-result-item {
+  grid-template-columns: minmax(0, 1fr) 24px 13em;
+  column-gap: 8px;
+}
+.dialog-card.breed-recommend-dialog .breed-result-target {
+  /* 图标旁至少容纳两个性格标签横排 */
+  flex: 1;
+  min-width: 8em;
 }
 .dialog-card.form-dialog.pet-form-dialog {
   width: min(92vw, 560px);
@@ -2350,7 +2422,7 @@ label.pick-item.selected {
     13.125em
     1.6em
     7.2em
-    max-content
+    minmax(12.5em, 14em)
     minmax(28px, 1fr);
   align-items: center;
   column-gap: 10px;
@@ -2414,6 +2486,10 @@ label.pick-item.selected {
   gap: 6px 8px;
   min-width: 0;
   max-width: 100%;
+}
+/* 查询页：性格列宽约容 3 个标签，第 4 个起换行 */
+.breed-page .breed-result-nature {
+  width: 100%;
 }
 .breed-result-main .scheme-pet-icon,
 .breed-result-goal .scheme-pet-icon {

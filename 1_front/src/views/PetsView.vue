@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
+import BreedResultPanel from '../components/BreedResultPanel.vue'
 import { api, type EggGroup, type Medal, type MyPet, type Nature, type PetDeleteImpact, type Species } from '../api'
+import { useBreedQuery } from '../composables/useBreedQuery'
 import { useToast } from '../composables/useToast'
 import { getEggGroups, getNatures, getSpeciesAll } from '../composables/useDictCache'
 
@@ -15,6 +17,24 @@ const error = ref('')
 const editing = ref<number | null>(null)
 const formOpen = ref(false)
 const saving = ref(false)
+
+const breedOpen = ref(false)
+const breedPet = ref<MyPet | null>(null)
+const {
+  mode: breedMode,
+  queried: breedQueried,
+  loading: breedLoading,
+  error: breedError,
+  displayItems: breedItems,
+  itemScheme,
+  schemeClass,
+  schemeLabel,
+  leftNatureNames,
+  targetNatureNames,
+  targetSpecies,
+  reset: resetBreedQuery,
+  runQuery: runBreedQuery,
+} = useBreedQuery()
 
 const form = reactive({
   speciesId: '' as number | '',
@@ -148,6 +168,30 @@ function openEdit(p: MyPet) {
 function closeForm() {
   formOpen.value = false
   resetForm()
+}
+
+/** 等同于在最佳配种查询页选中该精灵的种/性别/性格后点查询 */
+async function openBreedRecommend(p: MyPet) {
+  breedPet.value = p
+  breedOpen.value = true
+  resetBreedQuery()
+  try {
+    await runBreedQuery({
+      speciesId: p.speciesId,
+      gender: p.gender,
+      natureId: p.natureId,
+      speciesSnap: species.value.find((s) => s.id === p.speciesId) || null,
+      natureSnap: natures.value.find((n) => n.id === p.natureId) || null,
+    })
+  } catch (e) {
+    toast((e as Error).message, { type: 'error' })
+  }
+}
+
+function closeBreedRecommend() {
+  breedOpen.value = false
+  breedPet.value = null
+  resetBreedQuery()
 }
 
 function toggleMenu(key: string) {
@@ -511,6 +555,7 @@ function resetListSearch() {
             <span v-if="!(p.medals || []).length" class="muted">—</span>
           </div>
           <div class="actions">
+            <button type="button" class="pet-breed-rec" @click="openBreedRecommend(p)">配种推荐</button>
             <button type="button" class="secondary" @click="openEdit(p)">编辑</button>
             <button type="button" class="danger" @click="remove(p.id)">删除</button>
           </div>
@@ -683,6 +728,37 @@ function resetListSearch() {
         <div class="dialog-actions">
           <button type="button" class="secondary" @click="cancelDelete">取消</button>
           <button type="button" class="danger" @click="confirmDelete">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="breedOpen" class="dialog-mask" @click.self="closeBreedRecommend">
+      <div class="dialog-card breed-recommend-dialog">
+        <p class="dialog-title">
+          配种推荐
+          <template v-if="breedPet">
+            · {{ breedPet.speciesName || '精灵' }}
+            {{ breedPet.gender === '公' ? '♂' : '♀' }}
+            <template v-if="breedPet.natureName"> · {{ breedPet.natureName }}</template>
+          </template>
+          <span v-if="breedQueried && !breedLoading" class="muted breed-result-meta">
+            · {{ breedItems.length }} 项
+          </span>
+        </p>
+        <p v-if="breedError" class="error">{{ breedError }}</p>
+        <BreedResultPanel
+          :loading="breedLoading"
+          :items="breedItems"
+          :mode="breedMode"
+          :item-scheme="itemScheme"
+          :scheme-class="schemeClass"
+          :scheme-label="schemeLabel"
+          :left-nature-names="leftNatureNames"
+          :target-nature-names="targetNatureNames"
+          :target-species="targetSpecies"
+        />
+        <div class="dialog-actions">
+          <button type="button" class="secondary" @click="closeBreedRecommend">关闭</button>
         </div>
       </div>
     </div>
