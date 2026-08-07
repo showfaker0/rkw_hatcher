@@ -311,7 +311,7 @@ func (a *API) listSpecies(c *gin.Context) {
 		}
 	}
 
-	sqlStr := `SELECT s.id, s.` + "`no`" + `, s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at FROM species s`
+	sqlStr := `SELECT s.id, s."no", s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at FROM species s`
 	args := []interface{}{}
 	where := []string{}
 
@@ -342,10 +342,10 @@ func (a *API) listSpecies(c *gin.Context) {
 
 	if q != "" {
 		like := "%" + q + "%"
-		cond := `(s.name LIKE ? OR CAST(s.evo_chain AS CHAR) LIKE ? OR CAST(s.` + "`no`" + ` AS CHAR) LIKE ?)`
+		cond := `(s.name LIKE ? OR CAST(s.evo_chain AS TEXT) LIKE ? OR CAST(s."no" AS TEXT) LIKE ?)`
 		args = append(args, like, like, like)
 		if n, err := strconv.ParseUint(strings.TrimLeft(q, "0"), 10, 64); err == nil && n > 0 {
-			cond = `(s.name LIKE ? OR CAST(s.evo_chain AS CHAR) LIKE ? OR CAST(s.` + "`no`" + ` AS CHAR) LIKE ? OR s.` + "`no`" + ` = ?)`
+			cond = `(s.name LIKE ? OR CAST(s.evo_chain AS TEXT) LIKE ? OR CAST(s."no" AS TEXT) LIKE ? OR s."no" = ?)`
 			args = append(args, n)
 		}
 		where = append(where, cond)
@@ -354,7 +354,7 @@ func (a *API) listSpecies(c *gin.Context) {
 	if len(where) > 0 {
 		sqlStr += ` WHERE ` + strings.Join(where, " AND ")
 	}
-	sqlStr += ` ORDER BY s.` + "`no`" + ` IS NULL, s.` + "`no`" + `, s.id`
+	sqlStr += ` ORDER BY s."no" IS NULL, s."no", s.id`
 
 	rows, err := a.DB.Query(sqlStr, args...)
 	if err != nil {
@@ -409,7 +409,7 @@ func (a *API) fetchSpecies(id uint64) (models.Species, error) {
 	var no sql.NullInt64
 	var icon, notes sql.NullString
 	err := a.DB.QueryRow(`
-		SELECT s.id, s.`+"`no`"+`, s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
+		SELECT s.id, s."no", s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
 		FROM species s WHERE s.id = ?`, id).
 		Scan(&s.ID, &no, &s.Name, &icon, &evo, &notes, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
@@ -452,7 +452,7 @@ func (a *API) createSpecies(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`INSERT INTO species (`+"`no`"+`, name, icon_url, evo_chain, notes) VALUES (?, ?, ?, ?, ?)`,
+	res, err := tx.Exec(`INSERT INTO species ("no", name, icon_url, evo_chain, notes) VALUES (?, ?, ?, ?, ?)`,
 		nullUint64(in.No), in.Name, nullStr(in.IconURL), evo, nullStr(in.Notes))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

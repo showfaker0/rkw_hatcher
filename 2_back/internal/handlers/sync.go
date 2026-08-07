@@ -138,7 +138,7 @@ func (a *API) syncSpeciesCommit(c *gin.Context) {
 		if it.No > 0 {
 			no = it.No
 		}
-		res, err := tx.Exec(`INSERT INTO species (`+"`no`"+`, name, icon_url, evo_chain, notes) VALUES (?, ?, ?, ?, NULL)`, no, name, icon, evoJSON)
+		res, err := tx.Exec(`INSERT INTO species ("no", name, icon_url, evo_chain, notes) VALUES (?, ?, ?, ?, NULL)`, no, name, icon, evoJSON)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": name + ": " + err.Error()})
 			return

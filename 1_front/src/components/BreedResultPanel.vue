@@ -10,7 +10,7 @@ defineProps<{
   schemeLabel: (s: 1 | 2 | 3) => string
   leftNatureNames: (item: BreedResultItem) => string[]
   targetNatureNames: (item: BreedResultItem) => string[]
-  targetSpecies: (item: BreedResultItem) => { iconUrl?: string } | null
+  targetSpecies: (item: BreedResultItem) => { iconUrl?: string | null } | null
 }>()
 
 function formatPetId(id: number) {

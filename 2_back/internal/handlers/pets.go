@@ -212,7 +212,7 @@ func (a *API) updatePet(c *gin.Context) {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		// MySQL：字段未变化时 RowsAffected=0，不能据此判定不存在
+		// 字段未变化时 RowsAffected 可能为 0，不能据此判定不存在
 		var exists uint64
 		if err := tx.QueryRow(`SELECT id FROM my_pets WHERE id=?`, id).Scan(&exists); err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "未找到"})

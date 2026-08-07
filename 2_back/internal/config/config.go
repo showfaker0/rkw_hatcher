@@ -2,33 +2,30 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
+	"rkw_hatcher/internal/db"
 )
 
 type Config struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	HTTPAddr   string
+	HTTPAddr string
+	DBPath   string
 }
 
 func Load() Config {
-	_ = godotenv.Load()
-	return Config{
-		DBHost:     getenv("DB_HOST", "127.0.0.1"),
-		DBPort:     getenv("DB_PORT", "3306"),
-		DBUser:     getenv("DB_USER", "root"),
-		DBPassword: getenv("DB_PASSWORD", ""),
-		DBName:     getenv("DB_NAME", "rkw_hatcher_server"),
-		HTTPAddr:   getenv("HTTP_ADDR", ":8080"),
+	if exe, err := os.Executable(); err == nil {
+		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
 	}
-}
-
-func (c Config) DSN() string {
-	return c.DBUser + ":" + c.DBPassword + "@tcp(" + c.DBHost + ":" + c.DBPort + ")/" + c.DBName + "?parseTime=true&charset=utf8mb4&loc=Local"
+	_ = godotenv.Load()
+	path := getenv("DB_PATH", "")
+	if path == "" {
+		path = db.ResolveDBPath()
+	}
+	return Config{
+		HTTPAddr: getenv("HTTP_ADDR", ":3070"),
+		DBPath:   path,
+	}
 }
 
 func getenv(k, def string) string {

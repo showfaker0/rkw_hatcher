@@ -461,7 +461,7 @@ func (a *API) breedQuery(c *gin.Context) {
 	if gender == "公" {
 		mode = "stud"
 		sqlStr := `
-			SELECT DISTINCT s.id, s.` + "`no`" + `, s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
+			SELECT DISTINCT s.id, s."no", s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
 			FROM species s
 			JOIN species_best_natures sbn ON sbn.species_id = s.id AND sbn.nature_id = ?
 			WHERE EXISTS (
@@ -471,7 +471,7 @@ func (a *API) breedQuery(c *gin.Context) {
 				WHERE a.species_id = s.id AND b.species_id = ?
 				  AND e.name <> '无法孵蛋'
 			)
-			ORDER BY s.` + "`no`" + ` IS NULL, s.` + "`no`" + `, s.id`
+			ORDER BY s."no" IS NULL, s."no", s.id`
 		rows, err := a.DB.Query(sqlStr, natureID, speciesID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -507,7 +507,7 @@ func (a *API) breedQuery(c *gin.Context) {
 		}
 
 		sqlStr := `
-			SELECT DISTINCT s.id, s.` + "`no`" + `, s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
+			SELECT DISTINCT s.id, s."no", s.name, s.icon_url, s.evo_chain, s.notes, s.created_at, s.updated_at
 			FROM species s
 			WHERE EXISTS (
 				SELECT 1 FROM species_egg_groups a
@@ -516,7 +516,7 @@ func (a *API) breedQuery(c *gin.Context) {
 				WHERE a.species_id = s.id AND b.species_id = ?
 				  AND e.name <> '无法孵蛋'
 			)
-			ORDER BY (s.id = ?) DESC, s.` + "`no`" + ` IS NULL, s.` + "`no`" + `, s.id`
+			ORDER BY (s.id = ?) DESC, s."no" IS NULL, s."no", s.id`
 		rows, err := a.DB.Query(sqlStr, speciesID, speciesID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -16,7 +16,7 @@ let backendProc: ChildProcess | null = null
 
 async function isBackendUp(): Promise<boolean> {
   try {
-    const res = await fetch(HEALTH, { cache: 'no-store' })
+    const res = await fetch(HEALTH)
     return res.ok
   } catch {
     return false

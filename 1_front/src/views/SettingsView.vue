@@ -55,7 +55,7 @@ async function onImport(kind: 'species' | 'pets', ev: Event) {
   <section class="card">
     <h2>设置 / 导入导出</h2>
     <p :class="health.includes('已连接') ? 'muted' : 'error'">{{ health }}</p>
-    <p class="muted">蛋组 / 性格 / 奖章字典请在 Navicat 的 rkw_hatcher_server 库中维护，页面不可配置。</p>
+    <p class="muted">蛋组 / 性格 / 奖章字典存在本地 SQLite（首次启动自动种子），页面不可配置。</p>
     <div class="row">
       <button @click="exportSpecies">导出图鉴 Excel</button>
       <label class="btn" style="display:inline-flex;align-items:center">
@@ -77,10 +77,10 @@ async function onImport(kind: 'species' | 'pets', ev: Event) {
   <section class="card">
     <h2>启动说明</h2>
     <ol class="muted">
-      <li>Navicat 对库 <code>rkw_hatcher_server</code> 执行 <code>2_back/sql/schema.sql</code></li>
-      <li>复制 <code>2_back/.env.example</code> 为 <code>.env</code>，填入 MySQL 密码</li>
-      <li>后端：<code>cd 2_back && go run ./cmd/server</code></li>
+      <li>可选：复制 <code>2_back/.env.example</code> 为 <code>.env</code>（默认端口 <code>:3070</code>）</li>
+      <li>后端：<code>cd 2_back && go run ./cmd/server</code>（自动创建/使用 SQLite）</li>
       <li>前端：<code>cd 1_front && npm run dev</code></li>
+      <li>或双击 <code>release/rkw_hatcher.exe</code> 一键使用</li>
       <li>手机同 WiFi 访问电脑局域网 IP 的前端端口</li>
     </ol>
   </section>

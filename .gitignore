@@ -2,4 +2,10 @@
 **/node_modules/
 **/bin/
 **/dist/
+/release/
+2_back/data/
+*.db
+*.db-shm
+*.db-wal
+*.db.bak
 

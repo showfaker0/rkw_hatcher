@@ -14,14 +14,14 @@ import (
 
 func (a *API) exportSpecies(c *gin.Context) {
 	rows, err := a.DB.Query(`
-		SELECT s.id, s.`+"`no`"+`, s.name, s.evo_chain, s.notes,
-		       (SELECT GROUP_CONCAT(n.name ORDER BY n.id SEPARATOR ',')
+		SELECT s.id, s."no", s.name, s.evo_chain, s.notes,
+		       (SELECT GROUP_CONCAT(n.name, ',')
 		        FROM species_best_natures sbn JOIN natures n ON n.id = sbn.nature_id
 		        WHERE sbn.species_id = s.id),
-		       (SELECT GROUP_CONCAT(e.name ORDER BY e.id SEPARATOR ',')
+		       (SELECT GROUP_CONCAT(e.name, ',')
 		        FROM species_egg_groups seg JOIN egg_groups e ON e.id = seg.egg_group_id
 		        WHERE seg.species_id = s.id)
-		FROM species s ORDER BY s.`+"`no`"+` IS NULL, s.`+"`no`"+`, s.id`)
+		FROM species s ORDER BY s."no" IS NULL, s."no", s.id`)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -204,9 +204,9 @@ func (a *API) importSpecies(c *gin.Context) {
 		var sid uint64
 		err = tx.QueryRow(`SELECT id FROM species WHERE name=?`, name).Scan(&sid)
 		if err == nil {
-			_, err = tx.Exec(`UPDATE species SET `+"`no`"+`=?, evo_chain=?, notes=? WHERE id=?`, nullUint64(noPtr), evo, nullStr(notesPtr), sid)
+			_, err = tx.Exec(`UPDATE species SET "no"=?, evo_chain=?, notes=? WHERE id=?`, nullUint64(noPtr), evo, nullStr(notesPtr), sid)
 		} else {
-			res, e2 := tx.Exec(`INSERT INTO species (`+"`no`"+`, name, evo_chain, notes) VALUES (?,?,?,?)`, nullUint64(noPtr), name, evo, nullStr(notesPtr))
+			res, e2 := tx.Exec(`INSERT INTO species ("no", name, evo_chain, notes) VALUES (?,?,?,?)`, nullUint64(noPtr), name, evo, nullStr(notesPtr))
 			err = e2
 			if err == nil {
 				id64, _ := res.LastInsertId()
