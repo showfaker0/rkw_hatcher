@@ -8,4 +8,6 @@
 *.db-shm
 *.db-wal
 *.db.bak
+2_back/run_out.txt
+2_back/run_err.txt
 

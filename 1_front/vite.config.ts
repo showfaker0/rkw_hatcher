@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { spawn, type ChildProcess, execFile } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -28,12 +29,16 @@ function ensureBackend(): void {
   const env = { ...process.env }
   env.Path = `${GO_BIN};${env.Path || ''}`
   env.PATH = `${GO_BIN};${env.PATH || ''}`
+  if (!env.GOPROXY) env.GOPROXY = 'https://goproxy.cn,direct'
+  env.RKW_NO_BROWSER = '1'
+  const outFd = fs.openSync(path.join(BACK_DIR, 'run_out.txt'), 'w')
+  const errFd = fs.openSync(path.join(BACK_DIR, 'run_err.txt'), 'w')
   backendProc = spawn('go', ['run', './cmd/server'], {
     cwd: BACK_DIR,
     env,
     shell: true,
     windowsHide: true,
-    stdio: 'ignore',
+    stdio: ['ignore', outFd, errFd],
   })
   backendProc.on('exit', () => {
     backendProc = null

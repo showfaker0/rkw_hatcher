@@ -2217,6 +2217,17 @@ label.pick-item.selected {
   flex-direction: column;
   gap: 8px;
 }
+.line-scheme-col .line-scheme-pets {
+  min-height: 160px;
+  max-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.line-scheme-col .line-scheme-pets::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
 .line-scheme-pet {
   display: grid;
   grid-template-columns: 10px 2.6em 40px minmax(0, 1fr) auto;

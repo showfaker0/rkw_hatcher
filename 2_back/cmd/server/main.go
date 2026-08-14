@@ -55,10 +55,12 @@ func main() {
 	log.Printf("db: %s", cfg.DBPath)
 	log.Printf("listening on %s  →  %s", addr, url)
 	log.Printf("关闭本窗口即可退出")
-	go func() {
-		time.Sleep(300 * time.Millisecond)
-		_ = openBrowser(url)
-	}()
+	if os.Getenv("RKW_NO_BROWSER") == "" {
+		go func() {
+			time.Sleep(300 * time.Millisecond)
+			_ = openBrowser(url)
+		}()
+	}
 
 	srv := &http.Server{Handler: r}
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -70,10 +72,20 @@ func fatalf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	log.Println(msg)
 	fmt.Fprintln(os.Stderr, msg)
-	fmt.Println()
-	fmt.Println("按回车键退出…")
-	_, _ = fmt.Scanln()
+	if stdinIsTTY() {
+		fmt.Println()
+		fmt.Println("按回车键退出…")
+		_, _ = fmt.Scanln()
+	}
 	os.Exit(1)
+}
+
+func stdinIsTTY() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func openURL(addr string) string {
