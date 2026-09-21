@@ -886,6 +886,28 @@ th { color: var(--text-muted); font-weight: 600; }
 [data-theme='night'] .species-icon-wrap {
   background: rgba(255, 255, 255, 0.05);
 }
+button.species-icon-wrap {
+  padding: 0;
+  background: rgba(90, 70, 50, 0.06);
+  color: inherit;
+  transform: none;
+}
+button.species-icon-wrap:hover,
+.species-icon-hit:hover {
+  opacity: 1;
+  transform: none;
+  box-shadow: inset 0 0 0 1px rgba(193, 122, 74, 0.5);
+}
+[data-theme='night'] button.species-icon-wrap {
+  background: rgba(255, 255, 255, 0.05);
+}
+.species-icon-hit {
+  cursor: pointer;
+}
+button.species-icon-hit:disabled {
+  cursor: default;
+  box-shadow: none;
+}
 .species-info {
   min-width: 0;
   display: flex;
@@ -924,9 +946,14 @@ th { color: var(--text-muted); font-weight: 600; }
   margin-right: 18px;
 }
 .edit-species-name {
+  flex: 1;
   font-size: 1.08rem;
   font-weight: 650;
   min-width: 0;
+}
+.edit-species-head > .danger {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 [data-theme='night'] .edit-species-head {
   background: rgba(255, 255, 255, 0.04);
@@ -2534,6 +2561,240 @@ label.pick-item.selected {
   }
   .breed-result-goal {
     width: 100%;
+  }
+}
+
+/* —— 种族值详情弹窗 —— */
+.dialog-mask.species-detail-mask {
+  z-index: 120;
+}
+.dialog-card.species-detail-dialog {
+  width: min(92vw, 560px);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+  position: relative;
+  padding: 20px 20px 16px;
+  border: 1px solid rgba(193, 122, 74, 0.28);
+}
+[data-theme='night'] .dialog-card.species-detail-dialog {
+  border-color: rgba(212, 163, 115, 0.38);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(212, 163, 115, 0.08);
+}
+.sd-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.sd-close:hover {
+  background: var(--menu-hover);
+  color: var(--text);
+  transform: none;
+}
+.sd-state {
+  padding: 28px 8px;
+  text-align: center;
+}
+.sd-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 28px;
+  margin-bottom: 14px;
+}
+.sd-avatar {
+  width: 72px;
+  height: 72px;
+}
+.sd-head-main {
+  min-width: 0;
+  flex: 1;
+}
+.sd-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sd-name {
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+.sd-no {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.sd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.sd-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #fff;
+  background: #7a848f;
+}
+.sd-type[data-key='grass'] { background: #5a9c4a; }
+.sd-type[data-key='fire'] { background: #d4663a; }
+.sd-type[data-key='water'] { background: #3d8ec9; }
+.sd-type[data-key='electric'] { background: #c9a03d; }
+.sd-type[data-key='ice'] { background: #6cb4c4; }
+.sd-type[data-key='ground'] { background: #a07848; }
+.sd-type[data-key='wing'] { background: #7aa3c4; }
+.sd-type[data-key='light'] { background: #c9b46a; }
+.sd-type[data-key='dark'] { background: #5a5470; }
+.sd-type[data-key='toxic'] { background: #8a5aa0; }
+.sd-type[data-key='insect'] { background: #7aa04a; }
+.sd-type[data-key='dragon'] { background: #6a62b8; }
+.sd-type[data-key='mechanic'] { background: #6d7a86; }
+.sd-type[data-key='fight'] { background: #b85a4a; }
+.sd-type[data-key='ghost'] { background: #6a6080; }
+.sd-type[data-key='phantom'] { background: #7b6a9a; }
+.sd-type[data-key='demon'],
+.sd-type[data-key='evil'] { background: #5a4a62; }
+.sd-type[data-key='normal'] { background: #8a8078; }
+.sd-type[data-key='psychic'] { background: #c47aa0; }
+.sd-type[data-key='fairy'] { background: #d48aaa; }
+.sd-type[data-key='moe'] { background: #d4899c; }
+.sd-type[data-key='steel'] { background: #7a8a96; }
+.sd-type[data-key='rock'] { background: #9a8a68; }
+.sd-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.sd-badge.gold {
+  color: var(--accent);
+  border-color: rgba(193, 122, 74, 0.45);
+}
+.sd-form-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sd-form-row span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.sd-form-row select {
+  flex: 1;
+  min-width: 0;
+}
+.sd-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.sd-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.sd-bar-row {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr) 2.4em;
+  gap: 8px;
+  align-items: center;
+}
+.sd-bar-label,
+.sd-bar-val {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.sd-bar-label { color: var(--text-muted); }
+.sd-bar-val { text-align: right; font-weight: 650; }
+.sd-bar-track {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(90, 70, 50, 0.1);
+  overflow: hidden;
+}
+[data-theme='night'] .sd-bar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+.sd-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #e0b07a);
+}
+.sd-radar {
+  width: 220px;
+  height: 220px;
+  justify-self: center;
+  overflow: visible;
+}
+.sd-radar-grid,
+.sd-radar-axis {
+  fill: none;
+  stroke: rgba(193, 122, 74, 0.28);
+  stroke-width: 1;
+}
+.sd-radar-area {
+  fill: rgba(193, 122, 74, 0.28);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+.sd-radar-dot { fill: var(--accent); }
+.sd-radar-label {
+  fill: var(--text);
+  font-size: 11px;
+}
+.sd-match-title {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+.sd-match-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sd-match-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  min-height: 72px;
+}
+[data-theme='night'] .sd-match-box {
+  border-color: rgba(212, 163, 115, 0.22);
+}
+.sd-match-head {
+  font-size: 0.78rem;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.sd-match-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+@media (max-width: 640px) {
+  .sd-stats {
+    grid-template-columns: 1fr;
   }
 }
 

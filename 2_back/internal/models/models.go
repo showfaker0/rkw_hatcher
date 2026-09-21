@@ -201,3 +201,10 @@ type PetDeleteImpact struct {
 	InProduction bool                  `json:"inProduction"`
 	Lines        []PetDeleteLineImpact `json:"lines"`
 }
+
+type SpeciesDeleteImpact struct {
+	Name      string   `json:"name"`
+	PetCount  int      `json:"petCount"`
+	LineCount int      `json:"lineCount"`
+	LineNames []string `json:"lineNames"`
+}

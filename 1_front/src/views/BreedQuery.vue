@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import BreedResultPanel from '../components/BreedResultPanel.vue'
+import SpeciesDetailDialog from '../components/SpeciesDetailDialog.vue'
 import { type Nature, type Species } from '../api'
 import { useBreedQuery } from '../composables/useBreedQuery'
 import { useToast } from '../composables/useToast'
@@ -10,6 +11,7 @@ const { toast } = useToast()
 const natures = shallowRef<Nature[]>([])
 const species = shallowRef<Species[]>([])
 const speciesId = ref<number | ''>('')
+const detailSpeciesId = ref<number | null>(null)
 const gender = ref<'' | '公' | '母'>('')
 const natureId = ref<number | ''>('')
 
@@ -246,7 +248,9 @@ async function query() {
         :left-nature-names="leftNatureNames"
         :target-nature-names="targetNatureNames"
         :target-species="targetSpecies"
+        @open-species="detailSpeciesId = $event"
       />
     </section>
+    <SpeciesDetailDialog :species-id="detailSpeciesId" @close="detailSpeciesId = null" />
   </div>
 </template>

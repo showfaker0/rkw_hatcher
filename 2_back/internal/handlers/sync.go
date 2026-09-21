@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"rkw_hatcher/internal/wiki"
+	"rkw_hatcher/internal/toolbox"
 )
 
 type syncCommitItem struct {
@@ -56,7 +56,7 @@ func (a *API) existingSpeciesNames() (map[string]bool, error) {
 	return m, nil
 }
 
-// POST /api/species/sync/preview — 爬取 BWIKI，返回库中尚不存在的最终体候选
+// POST /api/species/sync/preview — 从洛克工具箱拉最终体，返回库中尚不存在的候选
 func (a *API) syncSpeciesPreview(c *gin.Context) {
 	eggMap, err := a.loadEggNameMap()
 	if err != nil {
@@ -68,12 +68,13 @@ func (a *API) syncSpeciesPreview(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	all, err := wiki.FetchFinalForms(eggMap)
+	all, err := toolbox.FetchFinalForms(eggMap)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "爬取失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "拉取失败: " + err.Error()})
 		return
 	}
-	candidates := make([]wiki.Candidate, 0)
+	patched, _ := a.backfillStubEvoChains(all)
+	candidates := make([]toolbox.Candidate, 0)
 	for _, it := range all {
 		if exist[it.Name] {
 			continue
@@ -84,9 +85,79 @@ func (a *API) syncSpeciesPreview(c *gin.Context) {
 		"totalFetched": len(all),
 		"existing":     len(exist),
 		"newCount":     len(candidates),
+		"chainPatched": patched,
 		"candidates":   candidates,
-		"source":       "BWIKI Module:PetData (CC BY-NC-SA 4.0)",
+		"source":       "洛克王国工具箱 pet-attribute-catalog",
 	})
+}
+
+// backfillStubEvoChains 只补「仅自身」占位链，不改个性/蛋组/备注。
+func (a *API) backfillStubEvoChains(all []toolbox.Candidate) (int, error) {
+	byName := map[string][]string{}
+	for _, it := range all {
+		if len(it.EvoChain) > 1 {
+			byName[it.Name] = it.EvoChain
+		}
+	}
+	if len(byName) == 0 {
+		return 0, nil
+	}
+	rows, err := a.DB.Query(`SELECT id, name, evo_chain FROM species`)
+	if err != nil {
+		return 0, err
+	}
+	type row struct {
+		id    uint64
+		name  string
+		chain []string
+	}
+	var stubs []row
+	for rows.Next() {
+		var r row
+		var evo []byte
+		if err := rows.Scan(&r.id, &r.name, &evo); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		r.chain, _ = parseJSONArray(evo)
+		if toolbox.IsStubEvoChain(r.name, r.chain) {
+			stubs = append(stubs, r)
+		}
+	}
+	scanErr := rows.Err()
+	rows.Close()
+	if scanErr != nil {
+		return 0, scanErr
+	}
+	n := 0
+	for _, r := range stubs {
+		inf := byName[r.name]
+		if len(inf) < 2 {
+			continue
+		}
+		evoJSON, err := joinJSONArray(inf)
+		if err != nil {
+			return n, err
+		}
+		if _, err := a.DB.Exec(`UPDATE species SET evo_chain=? WHERE id=?`, evoJSON, r.id); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
+}
+
+// BackfillMissingEvoChains 按全量图鉴回推，只补本地「仅自身」占位链。
+func (a *API) BackfillMissingEvoChains() (int, error) {
+	eggMap, err := a.loadEggNameMap()
+	if err != nil {
+		return 0, err
+	}
+	all, err := toolbox.FetchFinalForms(eggMap)
+	if err != nil {
+		return 0, err
+	}
+	return a.backfillStubEvoChains(all)
 }
 
 // POST /api/species/sync/commit — 仅新增勾选的精灵，不改动已有记录

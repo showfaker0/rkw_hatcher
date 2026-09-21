@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BreedMode, BreedResultItem } from '../composables/useBreedQuery'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   loading: boolean
   items: BreedResultItem[]
   mode: BreedMode | null
@@ -10,7 +10,13 @@ defineProps<{
   schemeLabel: (s: 1 | 2 | 3) => string
   leftNatureNames: (item: BreedResultItem) => string[]
   targetNatureNames: (item: BreedResultItem) => string[]
-  targetSpecies: (item: BreedResultItem) => { iconUrl?: string | null } | null
+  targetSpecies: (item: BreedResultItem) => { id?: number; iconUrl?: string | null } | null
+  /** 弹窗内为 false，避免叠开详情 */
+  allowDetail?: boolean
+}>(), { allowDetail: true })
+
+const emit = defineEmits<{
+  openSpecies: [id: number]
 }>()
 
 function formatPetId(id: number) {
@@ -25,6 +31,10 @@ function formatNo(no?: number | null) {
 function hideBrokenIcon(e: Event) {
   const el = e.target as HTMLImageElement
   el.style.display = 'none'
+}
+
+function openSpecies(id?: number | null) {
+  if (props.allowDetail && id) emit('openSpecies', id)
 }
 </script>
 
@@ -52,13 +62,19 @@ function hideBrokenIcon(e: Event) {
             <span v-else class="species-no">{{ formatNo(item.species.no) }}</span>
           </div>
 
-          <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
+          <span
+            class="species-icon-wrap scheme-pet-icon"
+            :class="{ 'species-icon-hit': allowDetail }"
+            :role="allowDetail ? 'button' : undefined"
+            :aria-label="allowDetail ? '查看 ' + item.species.name + ' 种族值' : undefined"
+            @click="openSpecies(item.species.id)"
+          >
             <img
               v-if="item.species.iconUrl"
               class="species-icon"
               :src="item.species.iconUrl"
               alt=""
-              @error="hideBrokenIcon"
+              referrerpolicy="no-referrer" @error="hideBrokenIcon"
             />
           </span>
 
@@ -106,13 +122,19 @@ function hideBrokenIcon(e: Event) {
         <span class="breed-result-arrow meta-arrow" aria-hidden="true">→</span>
 
         <div class="breed-result-goal card">
-          <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
+          <span
+            class="species-icon-wrap scheme-pet-icon"
+            :class="{ 'species-icon-hit': allowDetail }"
+            :role="allowDetail ? 'button' : undefined"
+            :aria-label="allowDetail ? '查看目标精灵种族值' : undefined"
+            @click="openSpecies(targetSpecies(item)?.id)"
+          >
             <img
               v-if="targetSpecies(item)?.iconUrl"
               class="species-icon"
               :src="targetSpecies(item)?.iconUrl || ''"
               alt=""
-              @error="hideBrokenIcon"
+              referrerpolicy="no-referrer" @error="hideBrokenIcon"
             />
           </span>
           <div class="meta-tags breed-result-target">

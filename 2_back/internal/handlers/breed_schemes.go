@@ -10,9 +10,15 @@ import (
 )
 
 // buildBreedSchemes 产线推荐核心（与前端规则一致）
-// excludeLineID 保留供调用方传编辑中的产线 ID；excludePetID>0 时排除该宠（用于删宠预览）
-func (a *API) buildBreedSchemes(targetSpeciesID, natureID uint64, medals []models.PetMedalPick, excludeLineID, excludePetID uint64) ([]models.BreedingScheme, error) {
+// excludeLineID 保留供调用方传编辑中的产线 ID；excludePetIDs 排除这些宠（删宠 / 删图鉴）
+func (a *API) buildBreedSchemes(targetSpeciesID, natureID uint64, medals []models.PetMedalPick, excludeLineID uint64, excludePetIDs ...uint64) ([]models.BreedingScheme, error) {
 	_ = excludeLineID
+	skipPet := map[uint64]struct{}{}
+	for _, id := range excludePetIDs {
+		if id > 0 {
+			skipPet[id] = struct{}{}
+		}
+	}
 	targetEggs, _, err := a.loadSpeciesEggGroups(targetSpeciesID)
 	if err != nil {
 		return nil, err
@@ -50,7 +56,7 @@ func (a *API) buildBreedSchemes(targetSpeciesID, natureID uint64, medals []model
 		if err := rows.Scan(&p.ID, &p.SpeciesID, &p.SpeciesName, &p.Gender, &p.NatureID, &p.NatureName, &p.Status, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
-		if excludePetID > 0 && p.ID == excludePetID {
+		if _, skip := skipPet[p.ID]; skip {
 			continue
 		}
 		// 推荐与忙碌/空闲无关

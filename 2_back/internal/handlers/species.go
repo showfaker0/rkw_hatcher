@@ -29,6 +29,8 @@ func (a *API) Register(r *gin.Engine) {
 		api.GET("/species", a.listSpecies)
 		api.POST("/species/sync/preview", a.syncSpeciesPreview)
 		api.POST("/species/sync/commit", a.syncSpeciesCommit)
+		api.GET("/species/:id/detail", a.getSpeciesDetail)
+		api.GET("/species/:id/delete-impact", a.speciesDeleteImpact)
 		api.GET("/species/:id", a.getSpecies)
 		api.POST("/species", a.createSpecies)
 		api.PUT("/species/:id", a.updateSpecies)
@@ -522,12 +524,246 @@ func (a *API) updateSpecies(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+func (a *API) speciesPetIDs(speciesID uint64) ([]uint64, error) {
+	rows, err := a.DB.Query(`SELECT id FROM my_pets WHERE species_id=?`, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []uint64
+	for rows.Next() {
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (a *API) speciesDeleteImpact(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var name string
+	if err := a.DB.QueryRow(`SELECT name FROM species WHERE id=?`, id).Scan(&name); err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到"})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	pets, err := a.speciesPetIDs(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	rows, err := a.DB.Query(`SELECT name FROM breeding_lines WHERE target_species_id=? ORDER BY id`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	names := []string{}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		names = append(names, n)
+	}
+	c.JSON(http.StatusOK, models.SpeciesDeleteImpact{
+		Name:      name,
+		PetCount:  len(pets),
+		LineCount: len(names),
+		LineNames: names,
+	})
+}
+
 func (a *API) deleteSpecies(c *gin.Context) {
 	id, ok := parseID(c)
 	if !ok {
 		return
 	}
-	res, err := a.DB.Exec(`DELETE FROM species WHERE id=?`, id)
+
+	var exists uint64
+	if err := a.DB.QueryRow(`SELECT id FROM species WHERE id=?`, id).Scan(&exists); err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到"})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	petIDs, err := a.speciesPetIDs(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	petSet := map[uint64]struct{}{}
+	for _, pid := range petIDs {
+		petSet[pid] = struct{}{}
+	}
+
+	lineRows, err := a.DB.Query(`SELECT id FROM breeding_lines WHERE target_species_id=?`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var targetLines []uint64
+	targetSet := map[uint64]struct{}{}
+	for lineRows.Next() {
+		var lid uint64
+		if err := lineRows.Scan(&lid); err != nil {
+			lineRows.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		targetLines = append(targetLines, lid)
+		targetSet[lid] = struct{}{}
+	}
+	lineRows.Close()
+
+	otherSet := map[uint64]struct{}{}
+	for _, pid := range petIDs {
+		rows, err := a.DB.Query(`SELECT DISTINCT line_id FROM breeding_line_scheme_pets WHERE pet_id=?`, pid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		for rows.Next() {
+			var lid uint64
+			if err := rows.Scan(&lid); err != nil {
+				rows.Close()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if _, skip := targetSet[lid]; !skip {
+				otherSet[lid] = struct{}{}
+			}
+		}
+		rows.Close()
+	}
+
+	type linePlan struct {
+		id      uint64
+		schemes []models.BreedingScheme
+	}
+	var plans []linePlan
+	for lid := range otherSet {
+		var speciesID, natureID uint64
+		if err := a.DB.QueryRow(`SELECT target_species_id, expected_nature_id FROM breeding_lines WHERE id=?`, lid).
+			Scan(&speciesID, &natureID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		medals, err := a.loadLineMedals(lid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		schemes, err := a.buildBreedSchemes(speciesID, natureID, medals, lid, petIDs...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		plans = append(plans, linePlan{id: lid, schemes: schemes})
+	}
+
+	tx, err := a.DB.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer tx.Rollback()
+
+	var partners []uint64
+	for _, lid := range targetLines {
+		runRows, err := tx.Query(`SELECT stud_pet_id, dam_pet_id FROM breeding_line_runs WHERE line_id=?`, lid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		for runRows.Next() {
+			var stud, dam uint64
+			if err := runRows.Scan(&stud, &dam); err != nil {
+				runRows.Close()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			partners = append(partners, stud, dam)
+		}
+		runRows.Close()
+		if _, err := tx.Exec(`DELETE FROM breeding_lines WHERE id=?`, lid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	for _, pid := range petIDs {
+		runRows, err := tx.Query(`SELECT id, stud_pet_id, dam_pet_id FROM breeding_line_runs WHERE stud_pet_id=? OR dam_pet_id=?`, pid, pid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		type runRow struct{ id, stud, dam uint64 }
+		var runs []runRow
+		for runRows.Next() {
+			var r runRow
+			if err := runRows.Scan(&r.id, &r.stud, &r.dam); err != nil {
+				runRows.Close()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			runs = append(runs, r)
+		}
+		runRows.Close()
+		for _, r := range runs {
+			if _, err := tx.Exec(`DELETE FROM breeding_line_runs WHERE id=?`, r.id); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			partners = append(partners, r.stud, r.dam)
+		}
+	}
+
+	if _, err := tx.Exec(`DELETE FROM my_pets WHERE species_id=?`, id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	release := make([]uint64, 0, len(partners))
+	for _, pid := range partners {
+		if _, gone := petSet[pid]; !gone {
+			release = append(release, pid)
+		}
+	}
+	if err := a.releasePetsIfNotInRuns(tx, release); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, plan := range plans {
+		if len(plan.schemes) == 0 {
+			if _, err := tx.Exec(`DELETE FROM breeding_lines WHERE id=?`, plan.id); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			continue
+		}
+		if err := a.replaceLineSchemes(tx, plan.id, plan.schemes); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err := a.dropInvalidLineRuns(tx, plan.id); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	res, err := tx.Exec(`DELETE FROM species WHERE id=?`, id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -535,6 +771,10 @@ func (a *API) deleteSpecies(c *gin.Context) {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "未找到"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)

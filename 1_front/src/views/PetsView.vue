@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import BreedResultPanel from '../components/BreedResultPanel.vue'
+import SpeciesDetailDialog from '../components/SpeciesDetailDialog.vue'
 import { api, type EggGroup, type Medal, type MyPet, type Nature, type PetDeleteImpact, type Species } from '../api'
 import { useBreedQuery } from '../composables/useBreedQuery'
 import { useToast } from '../composables/useToast'
 import { getEggGroups, getNatures, getSpeciesAll } from '../composables/useDictCache'
 
 const { toast } = useToast()
+const detailSpeciesId = ref<number | null>(null)
 const list = ref<MyPet[]>([])
 const species = shallowRef<Species[]>([])
 const natures = shallowRef<Nature[]>([])
@@ -520,15 +522,20 @@ function resetListSearch() {
             ></span>
             {{ formatPetId(p.id) }}
           </span>
-          <span class="species-icon-wrap" aria-hidden="true">
+          <button
+            type="button"
+            class="species-icon-wrap species-icon-hit"
+            :aria-label="'查看 ' + (p.speciesName || '精灵') + ' 种族值'"
+            @click="detailSpeciesId = p.speciesId"
+          >
             <img
               v-if="petIcon(p)"
               class="species-icon"
               :src="petIcon(p)"
               alt=""
-              @error="hideBrokenIcon"
+              referrerpolicy="no-referrer" @error="hideBrokenIcon"
             />
-          </span>
+          </button>
           <div class="pet-name">{{ p.speciesName }}</div>
           <span class="gender-mark pet-gender" :class="p.gender === '公' ? 'male' : 'female'">
             {{ p.gender === '公' ? '♂' : '♀' }}
@@ -756,11 +763,14 @@ function resetListSearch() {
           :left-nature-names="leftNatureNames"
           :target-nature-names="targetNatureNames"
           :target-species="targetSpecies"
+          :allow-detail="false"
         />
         <div class="dialog-actions">
           <button type="button" class="secondary" @click="closeBreedRecommend">关闭</button>
         </div>
       </div>
     </div>
+
+    <SpeciesDetailDialog :species-id="detailSpeciesId" @close="detailSpeciesId = null" />
   </div>
 </template>

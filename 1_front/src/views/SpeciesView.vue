@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, shallowRef, ref, watch } from 'vue'
-import { api, type EggGroup, type Nature, type Species } from '../api'
+import SpeciesDetailDialog from '../components/SpeciesDetailDialog.vue'
+import { api, type EggGroup, type Nature, type Species, type SpeciesDeleteImpact } from '../api'
 import { useToast } from '../composables/useToast'
 import {
   getEggGroups,
@@ -47,6 +48,10 @@ const selected = ref<Record<string, boolean>>({})
 const syncMeta = ref({ totalFetched: 0, existing: 0, newCount: 0 })
 const committing = ref(false)
 const resetSpinning = ref(false)
+const detailSpeciesId = ref<number | null>(null)
+const deleteOpen = ref(false)
+const deleting = ref(false)
+const deleteImpact = ref<SpeciesDeleteImpact | null>(null)
 
 const boostOrder = ['生命', '物攻', '魔攻', '物防', '魔防', '速度']
 const naturesByBoost = computed(() => {
@@ -179,8 +184,46 @@ function openEdit(s: Species) {
 }
 
 function closeForm() {
+  if (deleting.value) return
   formOpen.value = false
+  deleteOpen.value = false
+  deleteImpact.value = null
   resetForm()
+}
+
+async function askDelete() {
+  if (!editingId.value || saving.value || deleting.value) return
+  try {
+    deleteImpact.value = await api.get<SpeciesDeleteImpact>(`/species/${editingId.value}/delete-impact`)
+    deleteOpen.value = true
+  } catch (e) {
+    toast((e as Error).message || '无法删除', { type: 'error' })
+  }
+}
+
+function cancelDelete() {
+  if (deleting.value) return
+  deleteOpen.value = false
+  deleteImpact.value = null
+}
+
+async function confirmDelete() {
+  if (!editingId.value) return
+  deleting.value = true
+  try {
+    await api.del(`/species/${editingId.value}`)
+    toast('已删除', { type: 'success' })
+    deleteOpen.value = false
+    deleteImpact.value = null
+    formOpen.value = false
+    resetForm()
+    invalidateSpeciesCache()
+    await loadList()
+  } catch (e) {
+    toast((e as Error).message || '删除失败', { type: 'error' })
+  } finally {
+    deleting.value = false
+  }
 }
 
 function toggleFormNature(id: number) {
@@ -226,7 +269,7 @@ async function runSync() {
     selected.value = {}
     for (const c of candidates.value) selected.value[c.name] = true
     if (!candidates.value.length) {
-      toast('没有可新增的精灵（库中已有或 wiki 无新数据）', { type: 'info' })
+      toast('没有可新增的精灵（库中已有或工具箱无新数据）', { type: 'info' })
       return
     }
     pickOpen.value = true
@@ -372,7 +415,7 @@ function formatNo(no?: number | null) {
 
     <section class="species-list-wrap soft-scroll">
       <div v-if="loading && !list.length" class="list-empty muted">加载中…</div>
-      <div v-else-if="!list.length" class="list-empty muted">暂无图鉴，点击「更新数据」从 BWIKI 同步</div>
+      <div v-else-if="!list.length" class="list-empty muted">暂无图鉴，点击「更新数据」从工具箱同步</div>
       <div v-else class="species-list">
         <article
           v-for="s in list"
@@ -381,15 +424,20 @@ function formatNo(no?: number | null) {
           class="species-item card"
         >
           <span class="species-no">{{ formatNo(s.no) }}</span>
-          <span class="species-icon-wrap" aria-hidden="true">
+          <button
+            type="button"
+            class="species-icon-wrap species-icon-hit"
+            :aria-label="'查看 ' + s.name + ' 种族值'"
+            @click="detailSpeciesId = s.id"
+          >
             <img
               v-if="s.iconUrl"
               class="species-icon"
               :src="s.iconUrl"
               alt=""
-              @error="hideBrokenIcon"
+              referrerpolicy="no-referrer" @error="hideBrokenIcon"
             />
-          </span>
+          </button>
           <div class="species-name">{{ s.name }}</div>
           <div class="species-info">
             <div class="meta-tags">
@@ -430,10 +478,11 @@ function formatNo(no?: number | null) {
               class="species-icon"
               :src="form.iconUrl"
               alt=""
-              @error="hideBrokenIcon"
+              referrerpolicy="no-referrer" @error="hideBrokenIcon"
             />
           </span>
           <div class="edit-species-name">{{ form.name }}</div>
+          <button type="button" class="danger" :disabled="saving || deleting" @click="askDelete">删除</button>
         </div>
         <p class="muted nature-pick-hint">推荐性格</p>
         <div class="nature-pick">
@@ -456,16 +505,40 @@ function formatNo(no?: number | null) {
           </div>
         </div>
         <div class="dialog-actions">
-          <button type="button" class="secondary" :disabled="saving" @click="closeForm">取消</button>
-          <button type="button" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+          <button type="button" class="secondary" :disabled="saving || deleting" @click="closeForm">取消</button>
+          <button type="button" :disabled="saving || deleting" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="deleteOpen" class="dialog-mask" @click.self="cancelDelete">
+      <div class="dialog-card">
+        <p class="dialog-title">确认删除「{{ deleteImpact?.name || form.name }}」？</p>
+        <div class="delete-impact">
+          <p class="delete-impact-lead">
+            将同时删除该图鉴在「我的精灵」中的
+            <strong>{{ deleteImpact?.petCount ?? 0 }}</strong>
+            只，以及以它为目标的
+            <strong>{{ deleteImpact?.lineCount ?? 0 }}</strong>
+            条产线，且不可恢复。
+          </p>
+          <p v-if="deleteImpact?.lineNames?.length" class="delete-impact-desc muted">
+            产线：{{ deleteImpact.lineNames.join('、') }}
+          </p>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" :disabled="deleting" @click="cancelDelete">取消</button>
+          <button type="button" class="danger" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? '删除中…' : '删除' }}
+          </button>
         </div>
       </div>
     </div>
 
     <div v-if="syncLoading" class="dialog-mask">
       <div class="dialog-card">
-        <p class="dialog-title">正在从 BWIKI 更新数据…</p>
-        <p class="muted" style="text-align:center;margin:0">拉取 PetData 并整理最终体 / 进化链 / 蛋组</p>
+        <p class="dialog-title">正在从工具箱更新数据…</p>
+        <p class="muted" style="text-align:center;margin:0">拉取最终体图鉴 / 进化链 / 蛋组</p>
         <div class="sync-loading-bar" aria-hidden="true" />
       </div>
     </div>
@@ -474,7 +547,7 @@ function formatNo(no?: number | null) {
       <div class="dialog-card form-dialog pick-dialog">
         <p class="dialog-title">选择要新增的精灵</p>
         <p class="muted" style="margin-top:-8px;margin-bottom:12px;text-align:center">
-          wiki 共 {{ syncMeta.totalFetched }} 只最终体，库中已有 {{ syncMeta.existing }}，
+          工具箱共 {{ syncMeta.totalFetched }} 只最终体，库中已有 {{ syncMeta.existing }}，
           可新增 {{ syncMeta.newCount }}（不会删除或覆盖已有）
         </p>
         <div class="actions" style="margin-bottom:10px">
@@ -498,7 +571,7 @@ function formatNo(no?: number | null) {
                 v-if="c.iconUrl"
                 :src="c.iconUrl"
                 alt=""
-                @error="hideBrokenIcon"
+                referrerpolicy="no-referrer" @error="hideBrokenIcon"
               />
             </span>
             <div class="pick-body">
@@ -527,5 +600,7 @@ function formatNo(no?: number | null) {
         </div>
       </div>
     </div>
+
+    <SpeciesDetailDialog :species-id="detailSpeciesId" @close="detailSpeciesId = null" />
   </div>
 </template>

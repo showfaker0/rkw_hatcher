@@ -116,3 +116,37 @@ export type PetDeleteImpact = {
   inProduction?: boolean
   lines: PetDeleteLineImpact[]
 }
+export type SpeciesDeleteImpact = {
+  name: string
+  petCount: number
+  lineCount: number
+  lineNames: string[]
+}
+export type TypeTag = { key: string; label: string }
+export type StatRow = { key: string; label: string; value: number }
+export type TypeRelations = {
+  counter: TypeTag[]
+  counteredBy: TypeTag[]
+  resist: TypeTag[]
+  resistedBy: TypeTag[]
+}
+export type SpeciesForm = {
+  key: string
+  name: string
+  selectorLabel: string
+  catalogNo?: number | null
+  iconUrl: string
+  types: TypeTag[]
+  stage: number
+  stageLabel: string
+  isFinal: boolean
+  isLeader: boolean
+  stats: StatRow[]
+  statMax: number
+  typeRelations: TypeRelations
+}
+export type SpeciesDetail = {
+  name: string
+  defaultFormKey: string
+  forms: SpeciesForm[]
+}

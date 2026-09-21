@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef } from 'vue'
+import SpeciesDetailDialog from '../components/SpeciesDetailDialog.vue'
 import { api, type BreedingLine, type BreedingLineRun, type Medal, type MyPet, type Nature, type Species } from '../api'
 import { buildBreedSchemes, schemeTitle } from '../composables/useBreedSchemes'
 import { useToast } from '../composables/useToast'
 import { getNatures, getSpeciesAll } from '../composables/useDictCache'
 
 const { toast } = useToast()
+const detailSpeciesId = ref<number | null>(null)
 const list = ref<BreedingLine[]>([])
 const species = shallowRef<Species[]>([])
 const natures = shallowRef<Nature[]>([])
@@ -526,6 +528,10 @@ function petIconUrl(p: MyPet) {
   return speciesById.value.get(p.speciesId)?.iconUrl || ''
 }
 
+function openSpeciesDetail(id?: number | null) {
+  if (id) detailSpeciesId.value = id
+}
+
 /** 弱推荐：性格与目标不符的半透明显示；强推荐不降透明度 */
 function produceNatureDim(p: MyPet) {
   const line = produceLine.value
@@ -588,9 +594,14 @@ function produceNatureDim(p: MyPet) {
               :class="i <= lineActiveCount(b) ? 'busy' : 'idle'"
             />
           </button>
-          <span class="species-icon-wrap" aria-hidden="true">
-            <img v-if="lineIcon(b)" class="species-icon" :src="lineIcon(b)" alt="" @error="hideBrokenIcon" />
-          </span>
+          <button
+            type="button"
+            class="species-icon-wrap species-icon-hit"
+            :aria-label="'查看 ' + (b.targetSpeciesName || b.name) + ' 种族值'"
+            @click="openSpeciesDetail(b.targetSpeciesId)"
+          >
+            <img v-if="lineIcon(b)" class="species-icon" :src="lineIcon(b)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
+          </button>
           <div class="line-name">{{ b.targetSpeciesName || b.name }}</div>
           <div class="meta-tags line-natures">
             <span v-if="b.expectedNatureName" class="meta-tag nature">{{ b.expectedNatureName }}</span>
@@ -746,7 +757,7 @@ function produceNatureDim(p: MyPet) {
                         />
                         <span class="scheme-pet-id">{{ formatPetId(p.id) }}</span>
                         <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                          <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" @error="hideBrokenIcon" />
+                          <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                         </span>
                         <span class="scheme-pet-name">{{ p.speciesName }}</span>
                         <span class="scheme-pet-nature meta-tag nature">{{ p.natureName || '—' }}</span>
@@ -771,7 +782,7 @@ function produceNatureDim(p: MyPet) {
                         />
                         <span class="scheme-pet-id">{{ formatPetId(p.id) }}</span>
                         <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                          <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" @error="hideBrokenIcon" />
+                          <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                         </span>
                         <span class="scheme-pet-name">{{ p.speciesName }}</span>
                         <span class="scheme-pet-nature meta-tag nature">{{ p.natureName || '—' }}</span>
@@ -816,7 +827,7 @@ function produceNatureDim(p: MyPet) {
                 <span class="pet-status-dot busy" title="忙碌中" />
                 <span class="scheme-pet-id">{{ formatPetId(r.stud.id) }}</span>
                 <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                  <img v-if="petIconUrl(r.stud)" class="species-icon" :src="petIconUrl(r.stud)" alt="" @error="hideBrokenIcon" />
+                  <img v-if="petIconUrl(r.stud)" class="species-icon" :src="petIconUrl(r.stud)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                 </span>
                 <span class="scheme-pet-name">{{ r.stud.speciesName }}</span>
                 <span class="scheme-pet-nature meta-tag nature">{{ r.stud.natureName || '—' }}</span>
@@ -826,7 +837,7 @@ function produceNatureDim(p: MyPet) {
                 <span class="pet-status-dot busy" title="忙碌中" />
                 <span class="scheme-pet-id">{{ formatPetId(r.dam.id) }}</span>
                 <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                  <img v-if="petIconUrl(r.dam)" class="species-icon" :src="petIconUrl(r.dam)" alt="" @error="hideBrokenIcon" />
+                  <img v-if="petIconUrl(r.dam)" class="species-icon" :src="petIconUrl(r.dam)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                 </span>
                 <span class="scheme-pet-name">{{ r.dam.speciesName }}</span>
                 <span class="scheme-pet-nature meta-tag nature">{{ r.dam.natureName || '—' }}</span>
@@ -885,7 +896,7 @@ function produceNatureDim(p: MyPet) {
                   />
                   <span class="scheme-pet-id">{{ formatPetId(p.id) }}</span>
                   <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                    <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" @error="hideBrokenIcon" />
+                    <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                   </span>
                   <span class="scheme-pet-name">{{ p.speciesName }}</span>
                   <span class="scheme-pet-nature meta-tag nature">{{ p.natureName || '—' }}</span>
@@ -913,7 +924,7 @@ function produceNatureDim(p: MyPet) {
                   />
                   <span class="scheme-pet-id">{{ formatPetId(p.id) }}</span>
                   <span class="species-icon-wrap scheme-pet-icon" aria-hidden="true">
-                    <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" @error="hideBrokenIcon" />
+                    <img v-if="petIconUrl(p)" class="species-icon" :src="petIconUrl(p)" alt="" referrerpolicy="no-referrer" @error="hideBrokenIcon" />
                   </span>
                   <span class="scheme-pet-name">{{ p.speciesName }}</span>
                   <span class="scheme-pet-nature meta-tag nature">{{ p.natureName || '—' }}</span>
@@ -958,5 +969,7 @@ function produceNatureDim(p: MyPet) {
         </div>
       </div>
     </div>
+
+    <SpeciesDetailDialog :species-id="detailSpeciesId" @close="detailSpeciesId = null" />
   </div>
 </template>
